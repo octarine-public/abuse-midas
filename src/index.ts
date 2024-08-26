@@ -236,9 +236,10 @@ new (class CAbuseMidas {
 	}
 
 	private reset() {
+		this.isSelled = false
+		this.isPurchased = false
 		this.pickItem = undefined
 		this.droppedItem = undefined
-		this.isSelled = false
 		this.sleeper.ResetTimer()
 	}
 
