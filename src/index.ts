@@ -74,32 +74,9 @@ new (class CAbuseMidas {
 			return
 		}
 		const playerData = PlayerCustomData.get(playerID)
-		if (playerData === undefined || playerData.IsSpectator) {
-			return
+		if (playerData !== undefined && !playerData.IsSpectator) {
+			this.task = TaskManager.Begin(() => this.useAbuse(), this.delay)
 		}
-		const localData = this.customData()
-		if (localData === undefined) {
-			return
-		}
-		const [playerTeamData, localHero] = localData
-		if (!this.hasGold(playerTeamData)) {
-			return
-		}
-		this.task = TaskManager.Begin(() => {
-			const stashMidas = localHero.TotalItems.find(
-				item => item instanceof item_hand_of_midas
-			)
-			if (
-				stashMidas !== undefined &&
-				stashMidas.ItemSlot >= DOTAScriptInventorySlot.DOTA_STASH_SLOT_1 &&
-				stashMidas.ItemSlot <= DOTAScriptInventorySlot.DOTA_STASH_SLOT_6
-			) {
-				localHero.SellItem(stashMidas)
-			}
-			if (this.pickItem !== undefined) {
-				localHero.PickupItem(this.pickItem)
-			}
-		}, this.delay)
 	}
 
 	protected PrepareUnitOrders(order: ExecuteOrder): void | false {
@@ -154,9 +131,6 @@ new (class CAbuseMidas {
 
 	protected LifeStateChanged(entity: Entity) {
 		if (entity === LocalPlayer?.Hero && !entity.IsAlive) {
-			if (this.task !== undefined) {
-				TaskManager.Cancel(this.task)
-			}
 			this.reset()
 		}
 	}
@@ -180,7 +154,7 @@ new (class CAbuseMidas {
 		if (localHero.IsVisibleForEnemies() && localHero.HPPercent < 3) {
 			return
 		}
-		if (this.droppedItem !== undefined) {
+		if (this.droppedItem !== undefined && this.droppedItem.StackCount <= 1) {
 			localHero.PurchaseItem(25)
 			localHero.PurchaseItem(64)
 			this.dropMidas(this.droppedItem)
@@ -198,7 +172,7 @@ new (class CAbuseMidas {
 	}
 
 	private customData(): Nullable<[PlayerCustomData, Hero]> {
-		if (GameState.MapName === "hero_demo_main") {
+		if (!this.state.value || GameState.MapName === "hero_demo_main") {
 			return
 		}
 		const playerTeamData = PlayerCustomData.Array.find(
@@ -218,6 +192,9 @@ new (class CAbuseMidas {
 	}
 
 	private reset() {
+		if (this.task !== undefined) {
+			TaskManager.Cancel(this.task)
+		}
 		this.task = undefined
 		this.pickItem = undefined
 		this.droppedItem = undefined
@@ -227,5 +204,28 @@ new (class CAbuseMidas {
 		const totalGold = playerData.UnreliableGold + playerData.ReliableGold
 		const midasData = AbilityData.GetAbilityByName(this.midasName)
 		return midasData !== undefined && midasData.Cost <= totalGold
+	}
+
+	private useAbuse() {
+		const localData = this.customData()
+		if (localData === undefined) {
+			this.reset()
+			return
+		}
+		const [, localHero] = localData
+		if (this.pickItem === undefined) {
+			return
+		}
+		const stashMidas = localHero.TotalItems.find(
+			item => item instanceof item_hand_of_midas
+		)
+		if (
+			stashMidas !== undefined &&
+			stashMidas.ItemSlot >= DOTAScriptInventorySlot.DOTA_STASH_SLOT_1 &&
+			stashMidas.ItemSlot <= DOTAScriptInventorySlot.DOTA_STASH_SLOT_6
+		) {
+			localHero.SellItem(stashMidas)
+		}
+		localHero.PickupItem(this.pickItem)
 	}
 })()
