@@ -219,6 +219,9 @@ new (class CAbuseMidas {
 	}
 
 	private customData(): Nullable<[PlayerCustomData, Hero]> {
+		if (GameState.MapName === "hero_demo_main") {
+			return
+		}
 		const playerTeamData = PlayerCustomData.Array.find(
 			x => x.IsLocalPlayer && !x.IsSpectator
 		)
